@@ -177,10 +177,13 @@ fn handle_input(
     // Mouse-look and WASD for player 0 (simplified mapping from SDL's per-device assignment)
     let mut p0 = query.iter_mut().find(|p| p.id == 0).unwrap();
 
-    // Sensitivity scales with window size a bit
-    let sens = 0.0025;
-    p0.yaw -= mouse_delta.dx * sens;
-    p0.pitch -= mouse_delta.dy * sens;
+    // Mouse-look sensitivity controlling crosshair/camera speed.
+    // Increase this value to rotate faster; decrease to rotate slower.
+    let sens = 0.0025; // <-- adjust this to tune sensitivity
+    
+    // Left/Right and Up/Down mouse sensitivity application
+    p0.yaw -= mouse_delta.dx * sens;   // horizontal look (left/right)
+    p0.pitch -= mouse_delta.dy * sens; // vertical look (up/down)
     // Clamp pitch similar to original (~ +/- 1.6 rad)
     let clamp = 1.6f32;
     p0.pitch = p0.pitch.clamp(-clamp, clamp);
