@@ -2,6 +2,8 @@ use bevy::prelude::*;
 use bevy::render::camera::Projection;
 use bevy::render::camera::PerspectiveProjection;
 use bevy::core_pipeline::prelude::Camera3d;
+use bevy::window::{CursorGrabMode, CursorOptions};
+// (UI crate imports removed to avoid dependency/namespace issues)
 use rand::Rng;
 
 // --- Constants (ported from SDL version) ---
@@ -51,6 +53,20 @@ struct MouseDelta {
     dy: f32,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AppMode { Playing, Menu, Settings }
+
+#[derive(Resource)]
+struct GameMode(AppMode);
+
+#[derive(Resource)]
+struct SettingsRes {
+    sensitivity: f32,
+    crosshair_half: f32,
+}
+
+// No UI components; menu handled via keyboard-only overlay state
+
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 enum CrosshairKind {
     Vertical,
@@ -80,18 +96,23 @@ fn main() {
         .insert_resource(PlayerCount(1))
         .insert_resource(MouseDelta::default())
         .insert_resource(init_edges(MAP_BOX_SCALE))
+        .insert_resource(GameMode(AppMode::Playing))
+        .insert_resource(SettingsRes { sensitivity: 0.0025, crosshair_half: CROSS_WORLD_HALF })
         .add_systems(Startup, (setup_players, setup_cameras))
         .add_systems(
             Update,
             (
+                esc_menu_toggle,
                 accumulate_mouse_motion,
                 handle_input,
+                handle_settings_input,
                 update_physics,
                 handle_shooting,
                 draw_world_gizmos,
                 draw_crosshair_gizmos,
                 update_camera_transforms,
                 update_camera_viewports,
+                update_cursor_visibility,
             ),
         )
         .run();
@@ -151,7 +172,12 @@ fn setup_cameras(mut commands: Commands, player_count: Res<PlayerCount>) {
 
 // --- Systems ---
 
-fn accumulate_mouse_motion(mut ev_motion: EventReader<bevy::input::mouse::MouseMotion>, mut delta: ResMut<MouseDelta>) {
+fn accumulate_mouse_motion(
+    mode: Res<GameMode>,
+    mut ev_motion: EventReader<bevy::input::mouse::MouseMotion>,
+    mut delta: ResMut<MouseDelta>,
+) {
+    if !matches!(mode.0, AppMode::Playing) { return; }
     let mut dx = 0.0f32;
     let mut dy = 0.0f32;
     for e in ev_motion.read() {
@@ -163,11 +189,14 @@ fn accumulate_mouse_motion(mut ev_motion: EventReader<bevy::input::mouse::MouseM
 }
 
 fn handle_input(
+    mode: Res<GameMode>,
     kb: Res<ButtonInput<KeyCode>>,
     mut query: Query<&mut Player>,
     mut player_count: ResMut<PlayerCount>,
     mut mouse_delta: ResMut<MouseDelta>,
+    settings: Res<SettingsRes>,
 ) {
+    if !matches!(mode.0, AppMode::Playing) { return; }
     // Expand players up to MAX by pressing keys 1..4 (optional join)
     if kb.just_pressed(KeyCode::Digit1) { player_count.0 = player_count.0.max(1); }
     if kb.just_pressed(KeyCode::Digit2) { player_count.0 = player_count.0.max(2); }
@@ -179,7 +208,7 @@ fn handle_input(
 
     // Mouse-look sensitivity controlling crosshair/camera speed.
     // Increase this value to rotate faster; decrease to rotate slower.
-    let sens = 0.0025; // <-- adjust this to tune sensitivity
+    let sens = settings.sensitivity; // <-- adjust in Settings menu
     
     // Left/Right and Up/Down mouse sensitivity application
     p0.yaw -= mouse_delta.dx * sens;   // horizontal look (left/right)
@@ -212,10 +241,12 @@ fn handle_input(
 }
 
 fn update_physics(
+    mode: Res<GameMode>,
     time: Res<Time>,
     kb: Res<ButtonInput<KeyCode>>,
     mut q: Query<(&mut Transform, &mut Velocity, &mut Player)>,
 ) {
+    if !matches!(mode.0, AppMode::Playing) { return; }
     let dt = time.delta_secs().max(1e-6);
     let drag = (-dt * DRAG_RATE).exp();
     let diff = 1.0 - drag;
@@ -275,9 +306,11 @@ fn update_physics(
 }
 
 fn handle_shooting(
+    mode: Res<GameMode>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut q_players: Query<(&mut Transform, &mut Player)>,
 ) {
+    if !matches!(mode.0, AppMode::Playing) { return; }
     if !mouse_buttons.just_pressed(MouseButton::Left) { return; }
 
     // Shooter is player 0
@@ -319,10 +352,12 @@ fn handle_shooting(
 }
 
 fn draw_world_gizmos(
+    mode: Res<GameMode>,
     edges: Res<Edges>,
     q_players: Query<(&Transform, &Player)>,
     mut gizmos: Gizmos,
 ) {
+    if !matches!(mode.0, AppMode::Playing) { return; }
     // Draw edges
     let edge_color = Color::srgb(0.25, 0.25, 0.25);
     for (a, b) in &edges.0 {
@@ -382,15 +417,75 @@ fn update_camera_viewports(
     }
 }
 
-fn draw_crosshair_gizmos(mut gizmos: Gizmos, cams: Query<(&Transform, &Camera)>) {
+fn draw_crosshair_gizmos(
+    mode: Res<GameMode>,
+    settings: Res<SettingsRes>,
+    mut gizmos: Gizmos,
+    cams: Query<(&Transform, &Camera)>,
+) {
+    if !matches!(mode.0, AppMode::Playing) { return; }
     for (tf, cam) in &cams {
         if !cam.is_active { continue; }
         let origin = tf.translation + tf.forward() * 2.0;
-        let right = tf.right() * CROSS_WORLD_HALF;
-        let up = tf.up() * CROSS_WORLD_HALF;
+        let right = tf.right() * settings.crosshair_half;
+        let up = tf.up() * settings.crosshair_half;
         gizmos.line(origin - right, origin + right, Color::WHITE);
         gizmos.line(origin - up, origin + up, Color::WHITE);
     }
+}
+
+fn esc_menu_toggle(kb: Res<ButtonInput<KeyCode>>, mut mode: ResMut<GameMode>) {
+    if kb.just_pressed(KeyCode::Escape) {
+        mode.0 = match mode.0 {
+            AppMode::Playing => AppMode::Menu,
+            _ => AppMode::Playing,
+        };
+    }
+}
+
+fn update_cursor_visibility(mode: Res<GameMode>, mut q: Query<&mut Window>) {
+    if let Ok(mut window) = q.single_mut() {
+        match mode.0 {
+            AppMode::Playing => {
+                window.cursor_options = CursorOptions {
+                    visible: false,
+                    grab_mode: CursorGrabMode::Locked,
+                    ..default()
+                };
+            }
+            _ => {
+                window.cursor_options = CursorOptions {
+                    visible: true,
+                    grab_mode: CursorGrabMode::None,
+                    ..default()
+                };
+            }
+        }
+    }
+}
+
+fn handle_settings_input(
+    mode: Res<GameMode>,
+    kb: Res<ButtonInput<KeyCode>>,
+    mut settings: ResMut<SettingsRes>,
+) {
+    if !matches!(mode.0, AppMode::Settings) { return; }
+    // Adjust crosshair size with [ and ]
+    if kb.just_pressed(KeyCode::BracketLeft) {
+        settings.crosshair_half = (settings.crosshair_half - 0.02).max(0.02);
+    }
+    if kb.just_pressed(KeyCode::BracketRight) {
+        settings.crosshair_half = (settings.crosshair_half + 0.02).min(1.0);
+    }
+    // Adjust sensitivity with - and =
+    if kb.just_pressed(KeyCode::Minus) {
+        settings.sensitivity = (settings.sensitivity - 0.0005).max(0.0001);
+    }
+    if kb.just_pressed(KeyCode::Equal) {
+        settings.sensitivity = (settings.sensitivity + 0.0005).min(0.02);
+    }
+    // Enter to go back to Menu
+    // Mappings: Enter returns to Menu; pressing Escape toggles back via esc_menu_toggle
 }
 
 // --- Helpers ---
