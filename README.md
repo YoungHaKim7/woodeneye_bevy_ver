@@ -1,13 +1,13 @@
-<p align="center">
-  <img width=350px src="woodeneye_008_screen.png" />
-</p>
-
 # run
 
 ```
 cargo r --release
 
 ```
+
+<p align="center">
+  <img width=250px src="assets/woodeneye_008_screen.png" />
+</p>
 
 # woodeneye_bevy_ver
 
