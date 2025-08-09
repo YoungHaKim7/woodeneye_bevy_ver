@@ -1,12 +1,20 @@
+<p align="center">
+  <img width=350px src="woodeneye_008_screen.png" />
+</p>
+
+# run
+
+```
+cargo r --release
+
+```
+
 # woodeneye_bevy_ver
 
 - sdl3-rust
   - https://github.com/vhspace/sdl3-rs/tree/master/examples/demo_games
 - C 언어 오리지날 코드 -  original code 
   - https://github.com/libsdl-org/SDL/tree/main/examples/demo/02-woodeneye-008
-
-
-
 
 # mouse 십자선과 감도 조절
 
