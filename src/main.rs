@@ -7,6 +7,9 @@ use rand::Rng;
 // --- Constants (ported from SDL version) ---
 const MAP_BOX_SCALE: i32 = 16; // half side length in world units
 const MAX_PLAYER_COUNT: usize = 4;
+const WINDOW_WIDTH: f32 = 1920.0;
+const WINDOW_HEIGHT: f32 = 1080.0;
+const CROSS_WORLD_HALF: f32 = 0.15; // half length of crosshair arms in world units
 
 // Physics tuning
 const DRAG_RATE: f32 = 6.0;
@@ -48,6 +51,18 @@ struct MouseDelta {
     dy: f32,
 }
 
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
+enum CrosshairKind {
+    Vertical,
+    Horizontal,
+}
+
+#[derive(Component)]
+struct Crosshair {
+    player_id: usize,
+    kind: CrosshairKind,
+}
+
 // --- Setup ---
 
 fn main() {
@@ -55,7 +70,7 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Example splitscreen shooter game (Bevy)".into(),
-                resolution: (800., 600.).into(),
+                resolution: (WINDOW_WIDTH, WINDOW_HEIGHT).into(),
                 resizable: true,
                 ..default()
             }),
@@ -74,6 +89,7 @@ fn main() {
                 update_physics,
                 handle_shooting,
                 draw_world_gizmos,
+                draw_crosshair_gizmos,
                 update_camera_transforms,
                 update_camera_viewports,
             ),
@@ -360,6 +376,17 @@ fn update_camera_viewports(
             physical_size: UVec2::new(size_w, size_h),
             depth: 0.0..1.0,
         });
+    }
+}
+
+fn draw_crosshair_gizmos(mut gizmos: Gizmos, cams: Query<(&Transform, &Camera)>) {
+    for (tf, cam) in &cams {
+        if !cam.is_active { continue; }
+        let origin = tf.translation + tf.forward() * 2.0;
+        let right = tf.right() * CROSS_WORLD_HALF;
+        let up = tf.up() * CROSS_WORLD_HALF;
+        gizmos.line(origin - right, origin + right, Color::WHITE);
+        gizmos.line(origin - up, origin + up, Color::WHITE);
     }
 }
 
