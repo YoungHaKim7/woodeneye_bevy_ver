@@ -1,8 +1,10 @@
-use bevy::prelude::*;
-use bevy::render::camera::Projection;
-use bevy::render::camera::PerspectiveProjection;
-use bevy::core_pipeline::prelude::Camera3d;
-use bevy::window::{CursorGrabMode, CursorOptions};
+use bevy::{
+    core_pipeline::prelude::Camera3d,
+    prelude::*,
+    render::camera::{PerspectiveProjection, Projection},
+    window::{CursorGrabMode, CursorOptions},
+};
+
 // (UI crate imports removed to avoid dependency/namespace issues)
 use rand::Rng;
 
@@ -54,7 +56,11 @@ struct MouseDelta {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum AppMode { Playing, Menu, Settings }
+enum AppMode {
+    Playing,
+    Menu,
+    Settings,
+}
 
 #[derive(Resource)]
 struct GameMode(AppMode);
@@ -97,7 +103,10 @@ fn main() {
         .insert_resource(MouseDelta::default())
         .insert_resource(init_edges(MAP_BOX_SCALE))
         .insert_resource(GameMode(AppMode::Playing))
-        .insert_resource(SettingsRes { sensitivity: 0.0025, crosshair_half: CROSS_WORLD_HALF })
+        .insert_resource(SettingsRes {
+            sensitivity: 0.0025,
+            crosshair_half: CROSS_WORLD_HALF,
+        })
         .add_systems(Startup, (setup_players, setup_cameras))
         .add_systems(
             Update,
@@ -120,7 +129,11 @@ fn main() {
 
 fn setup_players(mut commands: Commands) {
     // Optional light (not required for gizmos, keep for completeness)
-    commands.spawn((DirectionalLight::default(), Transform::default(), GlobalTransform::default()));
+    commands.spawn((
+        DirectionalLight::default(),
+        Transform::default(),
+        GlobalTransform::default(),
+    ));
 
     for i in 0..MAX_PLAYER_COUNT {
         let pos = Vec3::new(
@@ -132,18 +145,36 @@ fn setup_players(mut commands: Commands) {
         let mut r = 0xffu8;
         let mut g = 0xffu8;
         let mut b = 0xffu8;
-        if (1 << (i / 2)) & 2 != 0 { r = 0 };
-        if (1 << (i / 2)) & 1 != 0 { g = 0 };
-        if (1 << (i / 2)) & 4 != 0 { b = 0 };
-        if i & 1 == 0 { r = !r; g = !g; b = !b; }
+        if (1 << (i / 2)) & 2 != 0 {
+            r = 0
+        };
+        if (1 << (i / 2)) & 1 != 0 {
+            g = 0
+        };
+        if (1 << (i / 2)) & 4 != 0 {
+            b = 0
+        };
+        if i & 1 == 0 {
+            r = !r;
+            g = !g;
+            b = !b;
+        }
         let color = Color::srgb_u8(r, g, b);
 
         commands.spawn((
             Player {
                 id: i,
                 yaw: 0.5 * std::f32::consts::PI
-                    + if i & 1 != 0 { std::f32::consts::PI } else { 0.0 }
-                    + if i & 2 != 0 { 0.5 * std::f32::consts::PI } else { 0.0 },
+                    + if i & 1 != 0 {
+                        std::f32::consts::PI
+                    } else {
+                        0.0
+                    }
+                    + if i & 2 != 0 {
+                        0.5 * std::f32::consts::PI
+                    } else {
+                        0.0
+                    },
                 pitch: -0.25 * std::f32::consts::PI,
                 radius: 0.5,
                 height: 1.5,
@@ -160,7 +191,10 @@ fn setup_cameras(mut commands: Commands, player_count: Res<PlayerCount>) {
     // Spawn one camera per potential player; activate based on PlayerCount
     for i in 0..MAX_PLAYER_COUNT {
         commands.spawn((
-            Camera { is_active: i < player_count.0, ..default() },
+            Camera {
+                is_active: i < player_count.0,
+                ..default()
+            },
             Camera3d::default(),
             Projection::Perspective(PerspectiveProjection::default()),
             Transform::from_translation(Vec3::new(0.0, 2.0, 5.0)).looking_at(Vec3::ZERO, Vec3::Y),
@@ -177,7 +211,9 @@ fn accumulate_mouse_motion(
     mut ev_motion: EventReader<bevy::input::mouse::MouseMotion>,
     mut delta: ResMut<MouseDelta>,
 ) {
-    if !matches!(mode.0, AppMode::Playing) { return; }
+    if !matches!(mode.0, AppMode::Playing) {
+        return;
+    }
     let mut dx = 0.0f32;
     let mut dy = 0.0f32;
     for e in ev_motion.read() {
@@ -196,12 +232,22 @@ fn handle_input(
     mut mouse_delta: ResMut<MouseDelta>,
     settings: Res<SettingsRes>,
 ) {
-    if !matches!(mode.0, AppMode::Playing) { return; }
+    if !matches!(mode.0, AppMode::Playing) {
+        return;
+    }
     // Expand players up to MAX by pressing keys 1..4 (optional join)
-    if kb.just_pressed(KeyCode::Digit1) { player_count.0 = player_count.0.max(1); }
-    if kb.just_pressed(KeyCode::Digit2) { player_count.0 = player_count.0.max(2); }
-    if kb.just_pressed(KeyCode::Digit3) { player_count.0 = player_count.0.max(3); }
-    if kb.just_pressed(KeyCode::Digit4) { player_count.0 = player_count.0.max(4); }
+    if kb.just_pressed(KeyCode::Digit1) {
+        player_count.0 = player_count.0.max(1);
+    }
+    if kb.just_pressed(KeyCode::Digit2) {
+        player_count.0 = player_count.0.max(2);
+    }
+    if kb.just_pressed(KeyCode::Digit3) {
+        player_count.0 = player_count.0.max(3);
+    }
+    if kb.just_pressed(KeyCode::Digit4) {
+        player_count.0 = player_count.0.max(4);
+    }
 
     // Mouse-look and WASD for player 0 (simplified mapping from SDL's per-device assignment)
     let mut p0 = query.iter_mut().find(|p| p.id == 0).unwrap();
@@ -209,9 +255,9 @@ fn handle_input(
     // Mouse-look sensitivity controlling crosshair/camera speed.
     // Increase this value to rotate faster; decrease to rotate slower.
     let sens = settings.sensitivity; // <-- adjust in Settings menu
-    
+
     // Left/Right and Up/Down mouse sensitivity application
-    p0.yaw -= mouse_delta.dx * sens;   // horizontal look (left/right)
+    p0.yaw -= mouse_delta.dx * sens; // horizontal look (left/right)
     p0.pitch -= mouse_delta.dy * sens; // vertical look (up/down)
     // Clamp pitch similar to original (~ +/- 1.6 rad)
     let clamp = 1.6f32;
@@ -222,10 +268,34 @@ fn handle_input(
 
     // Additional players can be controlled via arrow keys, IJKL, and numpad as a convenience
     let sets: [(KeyCode, KeyCode, KeyCode, KeyCode, KeyCode); 4] = [
-        (KeyCode::KeyW, KeyCode::KeyA, KeyCode::KeyS, KeyCode::KeyD, KeyCode::Space),
-        (KeyCode::ArrowUp, KeyCode::ArrowLeft, KeyCode::ArrowDown, KeyCode::ArrowRight, KeyCode::Numpad0),
-        (KeyCode::KeyI, KeyCode::KeyJ, KeyCode::KeyK, KeyCode::KeyL, KeyCode::ShiftRight),
-        (KeyCode::Numpad8, KeyCode::Numpad4, KeyCode::Numpad5, KeyCode::Numpad6, KeyCode::NumpadEnter),
+        (
+            KeyCode::KeyW,
+            KeyCode::KeyA,
+            KeyCode::KeyS,
+            KeyCode::KeyD,
+            KeyCode::Space,
+        ),
+        (
+            KeyCode::ArrowUp,
+            KeyCode::ArrowLeft,
+            KeyCode::ArrowDown,
+            KeyCode::ArrowRight,
+            KeyCode::Numpad0,
+        ),
+        (
+            KeyCode::KeyI,
+            KeyCode::KeyJ,
+            KeyCode::KeyK,
+            KeyCode::KeyL,
+            KeyCode::ShiftRight,
+        ),
+        (
+            KeyCode::Numpad8,
+            KeyCode::Numpad4,
+            KeyCode::Numpad5,
+            KeyCode::Numpad6,
+            KeyCode::NumpadEnter,
+        ),
     ];
 
     for mut p in &mut query {
@@ -246,7 +316,9 @@ fn update_physics(
     kb: Res<ButtonInput<KeyCode>>,
     mut q: Query<(&mut Transform, &mut Velocity, &mut Player)>,
 ) {
-    if !matches!(mode.0, AppMode::Playing) { return; }
+    if !matches!(mode.0, AppMode::Playing) {
+        return;
+    }
     let dt = time.delta_secs().max(1e-6);
     let drag = (-dt * DRAG_RATE).exp();
     let diff = 1.0 - drag;
@@ -254,10 +326,34 @@ fn update_physics(
     for (mut transform, mut vel, mut player) in &mut q {
         // Direction from WASD for the player's mapped keys
         let (up, left, down, right, jump) = match player.id {
-            0 => (KeyCode::KeyW, KeyCode::KeyA, KeyCode::KeyS, KeyCode::KeyD, KeyCode::Space),
-            1 => (KeyCode::ArrowUp, KeyCode::ArrowLeft, KeyCode::ArrowDown, KeyCode::ArrowRight, KeyCode::Numpad0),
-            2 => (KeyCode::KeyI, KeyCode::KeyJ, KeyCode::KeyK, KeyCode::KeyL, KeyCode::ShiftRight),
-            _ => (KeyCode::Numpad8, KeyCode::Numpad4, KeyCode::Numpad5, KeyCode::Numpad6, KeyCode::NumpadEnter),
+            0 => (
+                KeyCode::KeyW,
+                KeyCode::KeyA,
+                KeyCode::KeyS,
+                KeyCode::KeyD,
+                KeyCode::Space,
+            ),
+            1 => (
+                KeyCode::ArrowUp,
+                KeyCode::ArrowLeft,
+                KeyCode::ArrowDown,
+                KeyCode::ArrowRight,
+                KeyCode::Numpad0,
+            ),
+            2 => (
+                KeyCode::KeyI,
+                KeyCode::KeyJ,
+                KeyCode::KeyK,
+                KeyCode::KeyL,
+                KeyCode::ShiftRight,
+            ),
+            _ => (
+                KeyCode::Numpad8,
+                KeyCode::Numpad4,
+                KeyCode::Numpad5,
+                KeyCode::Numpad6,
+                KeyCode::NumpadEnter,
+            ),
         };
 
         let dir_x = (kb.pressed(right) as i8 - kb.pressed(left) as i8) as f32;
@@ -265,9 +361,17 @@ fn update_physics(
         let norm = (dir_x * dir_x + dir_z * dir_z).sqrt();
         let (sin_yaw, cos_yaw) = player.yaw.sin_cos();
         let acc_x = MOVE_MULT
-            * if norm == 0.0 { 0.0 } else { (cos_yaw * dir_x + sin_yaw * dir_z) / norm };
+            * if norm == 0.0 {
+                0.0
+            } else {
+                (cos_yaw * dir_x + sin_yaw * dir_z) / norm
+            };
         let acc_z = MOVE_MULT
-            * if norm == 0.0 { 0.0 } else { (-sin_yaw * dir_x + cos_yaw * dir_z) / norm };
+            * if norm == 0.0 {
+                0.0
+            } else {
+                (-sin_yaw * dir_x + cos_yaw * dir_z) / norm
+            };
 
         // Apply drag and gravity
         vel.x -= vel.x * diff;
@@ -279,9 +383,11 @@ fn update_physics(
         vel.z += diff * acc_z / DRAG_RATE;
 
         // Integrate position similar to original
-        transform.translation.x += (dt - diff / DRAG_RATE) * acc_x / DRAG_RATE + diff * vel.x / DRAG_RATE;
+        transform.translation.x +=
+            (dt - diff / DRAG_RATE) * acc_x / DRAG_RATE + diff * vel.x / DRAG_RATE;
         transform.translation.y += -0.5 * GRAVITY * dt * dt + vel.y * dt;
-        transform.translation.z += (dt - diff / DRAG_RATE) * acc_z / DRAG_RATE + diff * vel.z / DRAG_RATE;
+        transform.translation.z +=
+            (dt - diff / DRAG_RATE) * acc_z / DRAG_RATE + diff * vel.z / DRAG_RATE;
 
         // Bounds
         let scale = MAP_BOX_SCALE as f32;
@@ -290,14 +396,36 @@ fn update_physics(
         let mut hit_x = false;
         let mut hit_y = false;
         let mut hit_z = false;
-        if pos.x < -bound { pos.x = -bound; hit_x = true; }
-        if pos.x >  bound { pos.x =  bound; hit_x = true; }
-        if pos.y <  player.height - scale { pos.y = player.height - scale; hit_y = true; }
-        if pos.y >  bound { pos.y =  bound; hit_y = true; }
-        if pos.z < -bound { pos.z = -bound; hit_z = true; }
-        if pos.z >  bound { pos.z =  bound; hit_z = true; }
-        if hit_x { vel.x = 0.0; }
-        if hit_z { vel.z = 0.0; }
+        if pos.x < -bound {
+            pos.x = -bound;
+            hit_x = true;
+        }
+        if pos.x > bound {
+            pos.x = bound;
+            hit_x = true;
+        }
+        if pos.y < player.height - scale {
+            pos.y = player.height - scale;
+            hit_y = true;
+        }
+        if pos.y > bound {
+            pos.y = bound;
+            hit_y = true;
+        }
+        if pos.z < -bound {
+            pos.z = -bound;
+            hit_z = true;
+        }
+        if pos.z > bound {
+            pos.z = bound;
+            hit_z = true;
+        }
+        if hit_x {
+            vel.x = 0.0;
+        }
+        if hit_z {
+            vel.z = 0.0;
+        }
         if hit_y {
             vel.y = if kb.pressed(jump) { JUMP_VELOCITY } else { 0.0 };
         }
@@ -310,13 +438,22 @@ fn handle_shooting(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut q_players: Query<(&mut Transform, &mut Player)>,
 ) {
-    if !matches!(mode.0, AppMode::Playing) { return; }
-    if !mouse_buttons.just_pressed(MouseButton::Left) { return; }
+    if !matches!(mode.0, AppMode::Playing) {
+        return;
+    }
+    if !mouse_buttons.just_pressed(MouseButton::Left) {
+        return;
+    }
 
     // Shooter is player 0
     let (origin, yaw, pitch, shooter_id) = {
         let (shooter_tf, shooter) = q_players.iter().find(|(_, p)| p.id == 0).unwrap();
-        (shooter_tf.translation, shooter.yaw, shooter.pitch, shooter.id)
+        (
+            shooter_tf.translation,
+            shooter.yaw,
+            shooter.pitch,
+            shooter.id,
+        )
     };
 
     // Direction from yaw/pitch
@@ -326,19 +463,30 @@ fn handle_shooting(
 
     // Check targets
     for (mut tf, mut target) in &mut q_players {
-        if target.id == shooter_id { continue; }
+        if target.id == shooter_id {
+            continue;
+        }
         let offset = tf.translation - origin;
         // Two spheres: feet and head
         let mut hit_count = 0;
         for j in 0..2 {
-            let dy = offset.y + if j == 0 { 0.0 } else { target.radius - target.height };
+            let dy = offset.y
+                + if j == 0 {
+                    0.0
+                } else {
+                    target.radius - target.height
+                };
             let d = Vec3::new(offset.x, dy, offset.z);
             let vd = dir.dot(d);
-            if vd < 0.0 { continue; }
+            if vd < 0.0 {
+                continue;
+            }
             let dd = d.length_squared();
             let rr = target.radius * target.radius;
             let vv = 1.0; // dir is normalized
-            if vd * vd >= vv * (dd - rr) { hit_count += 1; }
+            if vd * vd >= vv * (dd - rr) {
+                hit_count += 1;
+            }
         }
         if hit_count > 0 {
             // Reposition randomly within bounds
@@ -357,7 +505,9 @@ fn draw_world_gizmos(
     q_players: Query<(&Transform, &Player)>,
     mut gizmos: Gizmos,
 ) {
-    if !matches!(mode.0, AppMode::Playing) { return; }
+    if !matches!(mode.0, AppMode::Playing) {
+        return;
+    }
     // Draw edges
     let edge_color = Color::srgb(0.25, 0.25, 0.25);
     for (a, b) in &edges.0 {
@@ -397,8 +547,17 @@ fn update_camera_viewports(
     player_count: Res<PlayerCount>,
 ) {
     let window = windows.single().expect("primary window");
-    let (w, h) = (window.resolution.physical_width(), window.resolution.physical_height());
-    let (part_hor, part_ver): (usize, usize) = if player_count.0 > 2 { (2, 2) } else if player_count.0 > 1 { (2, 1) } else { (1, 1) };
+    let (w, h) = (
+        window.resolution.physical_width(),
+        window.resolution.physical_height(),
+    );
+    let (part_hor, part_ver): (usize, usize) = if player_count.0 > 2 {
+        (2, 2)
+    } else if player_count.0 > 1 {
+        (2, 1)
+    } else {
+        (1, 1)
+    };
     let size_w: u32 = w / part_hor as u32;
     let size_h: u32 = h / part_ver as u32;
 
@@ -406,7 +565,10 @@ fn update_camera_viewports(
         let i = cam_tag.player_id;
         let active = i < player_count.0;
         cam.is_active = active;
-        if !active { cam.viewport = None; continue; }
+        if !active {
+            cam.viewport = None;
+            continue;
+        }
         let mod_x = (i % part_hor) as u32;
         let mod_y = (i / part_hor) as u32;
         cam.viewport = Some(bevy::render::camera::Viewport {
@@ -423,9 +585,13 @@ fn draw_crosshair_gizmos(
     mut gizmos: Gizmos,
     cams: Query<(&Transform, &Camera)>,
 ) {
-    if !matches!(mode.0, AppMode::Playing) { return; }
+    if !matches!(mode.0, AppMode::Playing) {
+        return;
+    }
     for (tf, cam) in &cams {
-        if !cam.is_active { continue; }
+        if !cam.is_active {
+            continue;
+        }
         let origin = tf.translation + tf.forward() * 2.0;
         let right = tf.right() * settings.crosshair_half;
         let up = tf.up() * settings.crosshair_half;
@@ -469,7 +635,9 @@ fn handle_settings_input(
     kb: Res<ButtonInput<KeyCode>>,
     mut settings: ResMut<SettingsRes>,
 ) {
-    if !matches!(mode.0, AppMode::Settings) { return; }
+    if !matches!(mode.0, AppMode::Settings) {
+        return;
+    }
     // Adjust crosshair size with [ and ]
     if kb.just_pressed(KeyCode::BracketLeft) {
         settings.crosshair_half = (settings.crosshair_half - 0.02).max(0.02);
@@ -506,7 +674,11 @@ fn init_edges(scale: i32) -> Edges {
         let mut b = Vec3::ZERO;
         for j in 0..3 {
             a[j] = if (map[i * 2] & (1 << j)) != 0 { r } else { -r };
-            b[j] = if (map[i * 2 + 1] & (1 << j)) != 0 { r } else { -r };
+            b[j] = if (map[i * 2 + 1] & (1 << j)) != 0 {
+                r
+            } else {
+                -r
+            };
         }
         edges.push((a, b));
     }
@@ -533,4 +705,3 @@ fn init_edges(scale: i32) -> Edges {
 
     Edges(edges)
 }
-
